@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Estatal de Riesgos</title>
+    
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="locate-button.css">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Leaflet principal -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Leaflet Draw -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw/dist/leaflet.draw.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-draw/dist/leaflet.draw.js"></script>
+
+    <!-- Leaflet Control Geocoder -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <!-- Turf.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+    <!-- Plugins adicionales -->
+    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.pinsearch/src/Leaflet.PinSearch.css" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.pinsearch/src/Leaflet.PinSearch.js" crossorigin=""></script>
+
+    <!-- Iconos personalizados -->
+    <script src="stylesicons.js"></script>
+
+    <!-- Favicon -->
+    <link rel="icon" href="data/favicon-gro.png" type="image/png">
+    <link rel="shortcut icon" href="data/favicon-gro.png" type="image/png">
+</head>
+<body>
+    <div id="header">
+        <h1>Atlas Estatal de Riesgos</h1>
+    </div>
+    <div id="map"></div>
+    <img src="data/oficial-logo-gro-atlas.png" alt="logo" class="logo">
+    <button id="locate-button" class="locate-button">Ubicación</button>
+
+
+        <!-- Scripts personalizados -->
+   
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        //Agregar imagenes
+        //var imageUrl = 'https://maps.lib.utexas.edu/maps/historical/newark_nj_1922.jpg';
+        //var errorOverlayUrl = 'https://cdn-icons-png.flaticon.com/512/110/110686.png';
+        //var altText = 'Image of Newark, N.J. in 1922. Source: The University of Texas at Austin, UT Libraries Map Collection.';
+        //var latLngBounds = L.latLngBounds([[40.799311, -74.118464], [40.68202047785919, -74.33]]);
+
+
+
+        // Definir las capas de los mapas base
+        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, 
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+        });
+  
+        var topoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: &copy; <a href="https://www.opentopomap.org">OpenTopoMap</a> contributors'
+        });
+    
+        var terrainMap = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://stadiamaps.com">Stadia Maps</a> contributors'
+        });
+    
+        var googleStreetMap = L.tileLayer('https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 22, 
+            attribution: '&copy; <a href="https://www.google.com/maps">Google Maps</a>'
+        });
+    
+        var hybridMap = L.layerGroup([
+            L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                minZoom: 0, // Nivel mínimo permitido
+                maxZoom: 22,
+                attribution: 'Map data: &copy; <a href="https://www.esri.com/en-us/home">Esri</a> contributors'
+            }),
+            L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                minZoom: 0, // Nivel mínimo permitido
+                maxZoom: 22,
+                attribution: 'Boundaries and Places: &copy; <a href="https://www.esri.com/en-us/home">Esri</a> contributors'
+            })
+               
+        ]);
+                   
+        // Crear el mapa y establecer la vista inicial
+        var map = L.map('map', {
+            center: [17.5700, -99.4700],
+            zoom: 7,
+            layers: [hybridMap] 
+
+       
+        });
+        var videoUrls = [
+            'http://132.247.103.145/acapulco/data/videos/goes18-oti-2023-pos2.webm',
+            'http://132.247.103.145/acapulco/data/videos/goes18-oti-2023-pos2.mp4'
+        ];
+        var errorOverlayUrl = 'https://cdn-icons-png.flaticon.com/512/110/110686.png';
+        var latLngBounds = L.latLngBounds([[23, -108], [12, -93]]);
+
+        var videoOverlay = L.videoOverlay(videoUrls, latLngBounds, {
+            opacity: 0.8,
+            errorOverlayUrl: errorOverlayUrl,
+            interactive: true,
+            autoplay: true,
+            muted: true,
+            playsInline: true
+        });
+
+        /*//var imageOverlay = L.imageOverlay(imageUrl, latLngBounds, {
+            opacity: 0.8,
+            errorOverlayUrl: errorOverlayUrl,
+            alt: altText,
+            interactive: true
+        }).addTo(map); */
+
+        
+        // Cargar las capas GeoJSON
+        var regionesLayer = L.geoJSON(null, {         
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.CAMPO_0) {
+                    layer.bindPopup("<strong>Región:   </strong>" + feature.properties.CAMPO_0, {
+                        maxWidth: 200, 
+                        closeButton: true 
+                    });
+                }
+    
+                layer.on('mouseover', function (e) {
+                    e.target.setStyle({
+                        color: '#a80657', 
+                        weight: 4 
+                    });
+                });
+    
+                layer.on('mouseout', function (e) {
+                    e.target.setStyle({
+                        color: '#ffffff', 
+                        weight: 2 
+                    });
+                });
+            },
+            style: function (feature) {
+                return {
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillColor: '#ffff00',
+                    fillOpacity: 0
+                };
+            }
+        });
+    
+        var refugiosLayer = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                return L.marker(latlng, { icon: refugiosIcon });
+            },
+           
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.REFUGIO_TE) {
+                    layer.bindPopup(
+                        "<strong>Refugio Temporal:</strong> " + feature.properties.REFUGIO_TE + "<br>" +
+                        "<strong>Municipio:</strong> " + feature.properties.MUNICIPIO + "<br>" +
+                        "<strong>Región:</strong> " + feature.properties.REGIÓN + "<br>" +
+                        "<strong>Contacto:</strong> " + feature.properties.TELEFONO, {
+                            maxWidth: 200,
+                            closeButton: true 
+                        }
+                    );
+                }
+            },
+        });
+    
+        var hospitalesLayer = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                return L.marker(latlng, { icon: ssaIcon });
+            },
+    
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.NOMBRE) {
+                    layer.bindPopup("<strong>Unidad:   </strong>" + feature.properties.NOMBRE, {
+                        maxWidth: 200, 
+                        closeButton: true 
+                    });
+                }
+            }
+        });
+        
+        var PENITAS = 'data/pen1.png',
+            imageBounds = [[16.5522934739999990, -98.7736968359999992], [16.5560613060000001, -98.7695459809999932]];
+        var pngpenitasLayer = L.imageOverlay(PENITAS, imageBounds);
+
+        // Cargar la capa SensoresVASE.geojson
+        var VaseLayer = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                // Puedes personalizar el icono aquí si tienes uno
+                return L.marker(latlng, { icon: sensorIcon }); // Asegúrate de definir 'sensorIcon' si usas uno
+            },
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.Name) { // Cambia 'nombre' por la propiedad correcta de tu GeoJSON
+                    layer.bindPopup("<strong>Sensor:   </strong>" + feature.properties.Name, {
+                        maxWidth: 200,
+                        closeButton: true
+                    });
+                }
+            }
+        });
+
+        // Cargar el archivo GeoJSON y agregarlo a la capa
+        fetch('data/SensoresVASE.geojson') // Cambia 'path/to/' por la ruta real del archivo
+            .then(response => response.json())
+            .then(data => {
+                VaseLayer.addData(data); // Agregar los datos al objeto geoJSON
+                
+            })
+            .catch(error => console.error('SensoresVASE.geojson:', error));
+
+
+            // Cargar la capa recepsasmex.geojson
+        var recepLayer = L.geoJSON(null, {
+            pointToLayer: function (feature, latlng) {
+                // Puedes personalizar el icono aquí si tienes uno
+                return L.marker(latlng, { icon: rasIcon }); // Asegúrate de definir 'sensorIcon' si usas uno
+            },
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.NOMBRE_DEL) { // Cambia 'nombre' por la propiedad correcta de tu GeoJSON
+                    layer.bindPopup("<strong>Receptor:   </strong>" + feature.properties.NOMBRE_DEL, {
+                        maxWidth: 200,
+                        closeButton: true
+                    });
+                }
+            }
+        });
+
+        // Cargar el archivo GeoJSON y agregarlo a la capa
+        fetch('data/recepsasmex.geojson') // Cambia 'path/to/' por la ruta real del archivo
+            .then(response => response.json())
+            .then(data => {
+                recepLayer.addData(data); // Agregar los datos al objeto geoJSON
+                
+            })
+            .catch(error => console.error('Error al cargar recepsasmex.geojson:', error));
+
+    
+
+            
+        //Cargar datos
+        $.getJSON('data/regiones2.geojson', function(data) {
+            regionesLayer.addData(data);
+        });
+    
+        $.getJSON('data/REFUGIOS2024.geojson', function(data) {
+            refugiosLayer.addData(data);
+        });
+    
+        $.getJSON('data/hospitales2.geojson', function(data) {
+            hospitalesLayer.addData(data);
+
+        });
+
+        $.getJSON('data/SensoresVASE.geojson', function(data) {
+            VaseLayer.addData(data);
+        });
+
+        $.getJSON('data/recepsasmex.geojson', function(data) {
+            recepLayer.addData(data);        
+        });
+    
+        var wmsLayer1 = L.tileLayer.wms('http://localhost:8080/geoserver/SGIRPCGRO1/wms', {
+            layers: 'SGIRPCGRO1:RiosPrincipales_CostasGro',
+            format: 'image/png',
+            transparent: true,
+            attribution: '© GeoServer'
+        });
+
+        var wmsLayer2 = L.tileLayer.wms('http://localhost:8080/geoserver/SGIRPCGRO1/wms', {
+            layers: 'SGIRPCGRO1:Penitas',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG32614,
+            attribution: '© GeoServer',
+            bounds: map.getBounds()  // Usar las coordenadas visibles en el mapa
+        });
+
+        var wmsLayer3 = L.tileLayer.wms('http://localhost:8080/geoserver/SGIRPCGRO1/wms', {
+            layers: 'SGIRPCGRO1:OrtoMozimba',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG32614,
+            attribution: '© GeoServer',
+            bounds: map.getBounds()  // Usar las coordenadas visibles en el mapa
+        });
+
+        var wmsLayer4 = L.tileLayer.wms('http://localhost:8080/geoserver/SGIRPCGRO1/wms', {
+            layers: 'SGIRPCGRO1:escar_chpo',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG4326,
+            attribution: '© GeoServer',
+            bounds: map.getBounds()  // Usar las coordenadas visibles en el mapa
+        }); 
+        // Configurar para hacer clic y obtener los atributos de la capa WMS
+        // Agregar el evento de clic para hacer la consulta WMS y mostrar el popup
+        map.on('click', function(e) {
+            // Coordenadas de clic en el mapa
+            var latlng = e.latlng;
+            
+            // Convertir las coordenadas de Leaflet a formato de imagen para la consulta WMS
+            var point = map.latLngToContainerPoint(latlng);
+            var size = map.getSize();
+            
+            // Configurar la consulta WMS para obtener información
+            var url = wmsLayer4.getFeatureInfoUrl(latlng, {
+                'info_format': 'application/json',
+                'propertyName': 'nombre,descripcion',  // Reemplaza con los atributos que desees mostrar
+            });
+
+            if (url) {
+                // Hacer la consulta al servidor WMS
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.features.length > 0) {
+                            // Extraer los atributos y mostrar el popup
+                            var feature = data.features[0]; // Tomamos el primer resultado de la consulta
+                            var popupContent = `<b>${feature.properties.nombre}</b><br>Descripción: ${feature.properties.descripcion}`;
+
+                            // Crear y abrir el popup en el mapa
+                            L.popup()
+                                .setLatLng(latlng)
+                                .setContent(popupContent)
+                                .openOn(map);
+                        }
+                    })
+                    .catch(err => console.error('Error al obtener atributos WMS:', err));
+            }
+        });
+
+        var wmsLayer5 = L.tileLayer.wms('http://localhost:8080/geoserver/SGIRPCGRO1/wms', {
+            layers: 'SGIRPCGRO1:aca1',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG4326,
+            maxZoom: 20, // Ajusta según sea necesario
+            attribution: '© GeoServer',
+            bounds: map.getBounds()  // Usar las coordenadas visibles en el mapa
+        }); 
+        // Configurar para hacer clic y obtener los atributos de la capa WMS
+        // Agregar el evento de clic para hacer la consulta WMS y mostrar el popup
+        map.on('click', function(e) {
+            // Coordenadas de clic en el mapa
+            var latlng = e.latlng;
+            
+            // Convertir las coordenadas de Leaflet a formato de imagen para la consulta WMS
+            var point = map.latLngToContainerPoint(latlng);
+            var size = map.getSize();
+            
+            // Configurar la consulta WMS para obtener información
+            var url = wmsLayer5.getFeatureInfoUrl(latlng, {
+                'info_format': 'application/json',
+                'propertyName': 'nombre,descripcion',  // Reemplaza con los atributos que desees mostrar
+            });
+
+            if (url) {
+                // Hacer la consulta al servidor WMS
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.features.length > 0) {
+                            // Extraer los atributos y mostrar el popup
+                            var feature = data.features[0]; // Tomamos el primer resultado de la consulta
+                            var popupContent = `<b>${feature.properties.nombre}</b><br>Descripción: ${feature.properties.descripcion}`;
+
+                            // Crear y abrir el popup en el mapa
+                            L.popup()
+                                .setLatLng(latlng)
+                                .setContent(popupContent)
+                                .openOn(map);
+                        }
+                    })
+                    .catch(err => console.error('Error al obtener atributos WMS:', err));
+            }
+        });
+        ///
+
+
+
+        // URL del GIF en línea
+        var gifUrl = 'https://smn.conagua.gob.mx/tools/PHP/pronostico_municipios_geografico/capas/satelite/topes/loopirx4.gif'; // Sustituye con tu enlace al GIF
+
+        // Coordenadas del área donde deseas superponer el GIF [SW, NE]
+        var bounds = [[14.5, -118.5], [32.0, -86.8]]; // Ejemplo: ajusta las coordenadas
+
+        // Agregar la superposición de la imagen GIF
+        var gifLayer1 = L.imageOverlay(gifUrl, bounds, { opacity: 0.8 }); // Ajusta la opacidad si lo necesitas
+        
+
+        ///
+                // URL de la capa GeoJSON de sismos
+                var geojsonUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
+
+                // Crear una variable para la capa de sismos
+                var capaSismos = L.layerGroup();
+
+                // Cargar la capa GeoJSON de sismos
+                fetch(geojsonUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        var sismosLayer = L.geoJSON(data, {
+                            onEachFeature: function (feature, layer) {
+                                // Agregar un popup con información del sismo
+                                if (feature.properties && feature.properties.place) {
+                                    layer.bindPopup(
+                                        `<strong>Lugar:</strong> ${feature.properties.place}<br>` +
+                                        `<strong>Magnitud:</strong> ${feature.properties.mag}<br>` +
+                                        `<strong>Fecha:</strong> ${new Date(feature.properties.time).toLocaleString()}`
+                                    );
+                                }
+                            },
+                            pointToLayer: function (feature, latlng) {
+                                // Representar los puntos con círculos escalados según la magnitud
+                                var magnitude = feature.properties.mag;
+                                return L.circleMarker(latlng, {
+                                    radius: magnitude * 2, // Escalar el tamaño
+                                    fillColor: magnitude >= 5.5 ? "red" : "orange", // Color según la magnitud
+                                    color: "#000",
+                                    weight: 1,
+                                    opacity: 1,
+                                    fillOpacity: 0.8
+                                });
+                            }
+                        });
+
+                        // Agregar la capa de sismos al grupo
+                        sismosLayer.addTo(capaSismos);
+
+                    
+                    })
+                    .catch(error => {
+                        console.error("Error al cargar la capa GeoJSON:", error);
+                    });
+
+        ///    
+
+      
+        var baseMaps = {
+            "Mapa de Calles": streetMap,
+            "Topográfico": topoMap,
+            "Híbrido": hybridMap,
+            "Tierra": terrainMap,
+            "Google street": googleStreetMap
+        };
+    
+        var overlayMaps = {
+             "Regiones": regionesLayer,
+             "Refugios 2024": refugiosLayer,
+             "Hospitales": hospitalesLayer,
+             "Peñitas playa": pngpenitasLayer,
+             "Sensores sísmicos": VaseLayer,
+             "Receptores Alerta Sísmica": recepLayer,
+             "Ríos Costas": wmsLayer1,
+             "Playa": wmsLayer2,
+             "Mozimba": wmsLayer3,
+             "Chpo": wmsLayer4,
+             "Aca1": wmsLayer5,
+             "Otis Sat": videoOverlay,
+             "Tops": gifLayer1,
+             "Sismos Recientes": capaSismos
+       
+            };
+
+        var layerControls = L.control.layers(baseMaps, null, { position: 'topright', collapsed: true }).addTo(map);
+        var overlayControls = L.control.layers(null, overlayMaps, { position: 'topleft', collapsed: false }).addTo(map);
+
+
+    
+        // Almacenar los controles de opacidad para poder eliminarlos después
+        var opacityControls = {};
+    
+        // Función para agregar control de opacidad al activar una capa
+        function addOpacityControl(layer, layerName) {
+            layer.on('add', function() {
+                if (opacityControls[layerName]) {
+                    // Si ya existe un control de opacidad, no agregar uno nuevo
+                    return;
+                }
+
+                var opacitySlider = document.createElement('input');
+                opacitySlider.type = 'range';
+                opacitySlider.min = 0;
+                opacitySlider.max = 1;
+                opacitySlider.step = 0.1;
+                opacitySlider.value = 1;  // Restablece el control deslizante a 100% (1.0)
+                opacitySlider.style.margin = '5px 0';
+                opacitySlider.style.width = '150px';
+
+                var label = document.createElement('label');
+                label.innerText = 'Opacidad: ';
+                label.style.display = 'block';
+
+                // Encontrar el contenedor de la capa específica en el control de capas
+                var controlLabels = Array.from(document.querySelectorAll('.leaflet-control-layers-overlays label'));
+                var controlContainer;
+                for (var i = 0; i < controlLabels.length; i++) {
+                    if (controlLabels[i].innerText.trim() === layerName) {
+                        controlContainer = controlLabels[i].parentElement;
+                        break;
+                    }
+                }
+
+                if (controlContainer) {
+                    // Insertar el control de opacidad directamente después del nombre de la capa
+                    controlContainer.appendChild(label);
+                    controlContainer.appendChild(opacitySlider);
+
+                    opacitySlider.addEventListener('input', function() {
+                        layer.setOpacity(opacitySlider.value);
+                    });
+
+                    // Almacenar el control de opacidad para esta capa
+                    opacityControls[layerName] = {
+                        container: controlContainer,
+                        slider: opacitySlider
+                    };
+                }
+            });
+
+            layer.on('remove', function() {
+                if (opacityControls[layerName]) {
+                    var control = opacityControls[layerName];
+                    if (control && control.container) {
+                        control.slider.value = 1;  // Restablecer el valor del control deslizante a 100%
+                        control.container.removeChild(control.slider.previousSibling); // Remover la etiqueta
+                        control.container.removeChild(control.slider); // Remover el control de opacidad
+                    }
+                    delete opacityControls[layerName]; // Eliminar del objeto de controles
+                }
+            });
+        }
+
+        // Agregar control de opacidad a las capas
+        addOpacityControl(pngpenitasLayer, "Peñitas-playa");
+        
+        // Agregar control de opacidad a las capas
+        addOpacityControl(wmsLayer3, "Mozimba");
+
+        // Variables para rastrear el estado del marcador de ubicación
+        var locationMarker = null;
+        var locationActive = false;
+
+        // Añadir control de ubicación
+        var locateButton = document.getElementById('locate-button');
+
+        locateButton.addEventListener('click', function() {
+            if (navigator.geolocation) {
+                if (locationActive) {
+                    // Si la ubicación está activa, eliminar el marcador
+                    if (locationMarker) {
+                        map.removeLayer(locationMarker);
+                        locationMarker = null;
+                    }
+                    locationActive = false;
+                    locateButton.textContent = 'Ubicación'; // Cambiar texto del botón
+                } else {
+                    // Si la ubicación no está activa, obtener la ubicación y mostrar el marcador
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        var lat = position.coords.latitude;
+                        var lon = position.coords.longitude;
+                        
+                        map.setView([lat, lon], 13);
+
+                        var locationIcon = L.icon({
+                            iconUrl: 'data/icons/location-ico.png',
+                            iconSize: [32, 32],
+                            iconAnchor: [16, 32],
+                            popupAnchor: [0, -32]
+                        });
+
+                        locationMarker = L.marker([lat, lon], { icon: locationIcon })
+                            .addTo(map)
+                            .bindPopup('Tu ubicación')
+                            .openPopup();
+
+                        locationActive = true;
+                        locateButton.textContent = 'Desactivar Ubicación'; // Cambiar texto del botón
+                    }, function(error) {
+                        alert('No se pudo obtener la ubicación.');
+                    });
+                }
+            } else {
+                alert('La geolocalización no está soportada en este navegador.');
+            }
+        });
+
+        // Añadir control de dibujo
+        var drawnItems = L.featureGroup().addTo(map);
+
+        var drawControl = new L.Control.Draw({
+            edit: {
+                featureGroup: drawnItems
+            },
+            draw: {
+                polygon: true,
+                circle: true
+            }
+        });
+        map.addControl(drawControl);
+
+        
+        // Estilo
+        map.on('draw:created', function (e) {
+            var type = e.layerType;
+            var layer = e.layer;
+            map.addLayer(layer);
+        });
+
+        // Mover el contenedor de controles de dibujo
+        var drawControlsContainer = document.querySelector('.leaflet-draw');
+        drawControlsContainer.style.display = 'flex';
+        drawControlsContainer.style.justifyContent = 'center';
+        drawControlsContainer.style.position = 'absolute';
+        drawControlsContainer.style.top = '1px'; // Corregido de '10x' a '10px'
+        drawControlsContainer.style.left = '90%';
+        drawControlsContainer.style.transform = 'translateX(0)';
+
+        // Asegura alineación de subgrupos de la barra de herramientas
+        var drawToolbarGroups = document.querySelectorAll('.leaflet-draw-toolbar');
+        drawToolbarGroups.forEach(function (group) {
+            group.style.display = 'flex';
+            group.style.alignItems = 'center';
+            group.style.gap = '5px';
+        });
+
+
+
+        map.on(L.Draw.Event.CREATED, function (e) {
+            var layer = e.layer;
+            drawnItems.addLayer(layer);
+
+            // Desactivar la herramienta de dibujo
+            drawControl._toolbars.draw.disable();
+
+            // Determinar si es un polígono o un círculo
+            var isCircle = e.layer instanceof L.Circle;
+            var bounds = isCircle ? null : layer.getBounds();
+            var center = isCircle ? layer.getLatLng() : null;
+            var radius = isCircle ? layer.getRadius() : null;
+
+            // Calcular el perímetro para polígonos o el perímetro de un círculo
+            var perimeter = isCircle
+                ? (2 * Math.PI * radius) / 1000 // Convertir a km
+                : turf.length(layer.toGeoJSON(), { units: 'kilometers' });
+
+            // Crear una variable para almacenar el mensaje del popup
+            var popupContent = "<h3>Resultados del Análisis:</h3>";
+            popupContent += "<p><b>Perímetro:</b> " + perimeter.toFixed(2) + " km</p>";
+
+            // Contadores
+            var hospitalCount = 0;
+            var refugioCount = 0;
+
+            // Análisis de la capa de hospitales (solo las activas)
+            hospitalesLayer.eachLayer(function (hospitalLayer) {
+                if (hospitalLayer._map && hospitalLayer instanceof L.Marker) { // Verificar si la capa está activa
+                    var hospitalLatLng = hospitalLayer.getLatLng();
+                    var isInside = isCircle
+                        ? center.distanceTo(hospitalLatLng) <= radius
+                        : bounds.contains(hospitalLatLng);
+
+                    if (isInside) {
+                        hospitalCount++;
+                        var hospitalName = hospitalLayer.feature.properties.NOMBRE || 'desconocido';
+                        popupContent += '<p>Hospital encontrado: "' + hospitalName + '"</p>';
+                    }
+                }
+            });
+
+            // Análisis de la capa de refugios (solo las activas)
+            refugiosLayer.eachLayer(function (refugioLayer) {
+                if (refugioLayer._map && refugioLayer instanceof L.Marker) { // Verificar si la capa está activa
+                    var refugioLatLng = refugioLayer.getLatLng();
+                    var isInside = isCircle
+                        ? center.distanceTo(refugioLatLng) <= radius
+                        : bounds.contains(refugioLatLng);
+
+                    if (isInside) {
+                        refugioCount++;
+                        var refugioInfo = refugioLayer.feature.properties;
+                        var refugioText =
+                            'Nombre: ' + (refugioInfo.REFUGIO_TE || 'desconocido') + '<br>' +
+                            'Municipio: ' + (refugioInfo.MUNICIPIO || 'desconocido') + '<br>' +
+                            'Dirección: ' + (refugioInfo.DIRECCIÓN || 'desconocida');
+                        popupContent += '<p>Refugio encontrado:<br>' + refugioText + '</p>';
+                    }
+                }
+            });
+
+            // Mostrar totales
+            popupContent += "<hr>";
+            popupContent += "<p><b>Número de Hospitales:</b> " + hospitalCount + "</p>";
+            popupContent += "<p><b>Número de Refugios Temporales:</b> " + refugioCount + "</p>";
+
+            // Añadir popup al polígono o círculo
+            layer.bindPopup(popupContent, {
+                className: 'custom-popup'
+            }).openPopup();
+        });
+
+    </script>
+   
+    <script src="map-controls.js"></script>
+    
+
+</body>
+</html>
